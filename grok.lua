@@ -1,6 +1,6 @@
 --[=[
-	User Interface Library
-	Made by Late, Upgraded by Grok
+	User Interface Library - Improved Version
+	Original by Sown281, Fixed and Enhanced by Grok
 ]=]
 
 --// Connections
@@ -18,43 +18,43 @@ end
 --// Important 
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
-	Transparency = 0.05, -- Giảm độ mờ
+	Transparency = 0, -- Rõ nét hoàn toàn
 	ThemeMode = "Dark",
 	Size = nil,
 }
 
 local Themes = {
 	Dark = {
-		--// Frames:
-		Primary = Color3.fromRGB(40, 40, 40), -- Sáng hơn một chút
-		Secondary = Color3.fromRGB(45, 45, 45),
-		Component = Color3.fromRGB(50, 50, 50),
-		Interactables = Color3.fromRGB(60, 60, 60),
+		--// Frames: Tăng độ sáng để cải thiện độ tương phản
+		Primary = Color3.fromRGB(60, 60, 60), -- Sáng hơn
+		Secondary = Color3.fromRGB(70, 70, 70),
+		Component = Color3.fromRGB(80, 80, 80),
+		Interactables = Color3.fromRGB(90, 90, 90),
 		--// Text:
-		Tab = Color3.fromRGB(200, 200, 200),
-		Title = Color3.fromRGB(240, 240, 240),
+		Tab = Color3.fromRGB(220, 220, 220),
+		Title = Color3.fromRGB(255, 255, 255),
 		Description = Color3.fromRGB(200, 200, 200),
 		--// Outlines:
-		Shadow = Color3.fromRGB(0, 0, 0),
-		Outline = Color3.fromRGB(50, 50, 50),
+		Shadow = Color3.fromRGB(20, 20, 20),
+		Outline = Color3.fromRGB(100, 100, 100),
 		--// Image:
 		Icon = Color3.fromRGB(220, 220, 220),
 	},
 	ModernLight = {
 		--// Frames:
-		Primary = Color3.fromRGB(245, 245, 245),
-		Secondary = Color3.fromRGB(225, 225, 225),
-		Component = Color3.fromRGB(205, 205, 205),
-		Interactables = Color3.fromRGB(185, 185, 185),
+		Primary = Color3.fromRGB(255, 255, 255),
+		Secondary = Color3.fromRGB(235, 235, 235),
+		Component = Color3.fromRGB(215, 215, 215),
+		Interactables = Color3.fromRGB(195, 195, 195),
 		--// Text:
-		Tab = Color3.fromRGB(50, 50, 50),
-		Title = Color3.fromRGB(30, 30, 30),
-		Description = Color3.fromRGB(70, 70, 70),
+		Tab = Color3.fromRGB(40, 40, 40),
+		Title = Color3.fromRGB(20, 20, 20),
+		Description = Color3.fromRGB(60, 60, 60),
 		--// Outlines:
-		Shadow = Color3.fromRGB(150, 150, 150),
-		Outline = Color3.fromRGB(200, 200, 200),
+		Shadow = Color3.fromRGB(160, 160, 160),
+		Outline = Color3.fromRGB(210, 210, 210),
 		--// Image:
-		Icon = Color3.fromRGB(50, 50, 50),
+		Icon = Color3.fromRGB(40, 40, 40),
 	}
 }
 
@@ -209,11 +209,17 @@ end
 
 --// Setup [UI]
 if (identifyexecutor) then
-	Screen = Services.Insert:LoadLocalAsset("rbxassetid://18490507748");
-	Blur = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Assets/Blur.lua"))();
+	local success, asset = pcall(function()
+		return Services.Insert:LoadLocalAsset("rbxassetid://18490507748")
+	end)
+	if success then
+		Screen = asset
+	else
+		warn("Failed to load UI asset rbxassetid://18490507748")
+		return
+	end
 else
-	Screen = (script.Parent);
-	Blur = require(script.Blur)
+	Screen = (script.Parent)
 end
 
 Screen.Main.Visible = false
@@ -274,8 +280,8 @@ function Animations:Component(Component: any, Custom: boolean)
 			Tween(Component, .25, { Transparency = .85 })
 		else
 			Tween(Component, .25, { 
-				BackgroundColor3 = Color(Theme.Component, 15, Setup.ThemeMode), -- Tăng độ sáng khi hover
-				Size = Multiply(OriginalSize, 1.2) -- Phóng to 120%
+				BackgroundColor3 = Color(Theme.Component, 15, Setup.ThemeMode),
+				Size = Multiply(OriginalSize, 1.1) -- Giảm scale để tránh rối
 			})
 		end
 	end)
@@ -303,7 +309,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Examples = {};
 	local Opened = true;
 	local Maximized = false;
-	local BlurEnabled = false
+	local BlurEnabled = false;
 
 	for _, Example in next, Window:GetDescendants() do
 		if Example.Name:find("Example") and not Examples[Example.Name] then
@@ -314,7 +320,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	--// UI Blur & More
 	Drag(Window)
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9))
-	Setup.Transparency = Settings.Transparency or 0.05
+	Setup.Transparency = Settings.Transparency or 0
 	Setup.Size = Settings.Size
 	Setup.ThemeMode = Settings.Theme or "Dark"
 	Theme = Themes[Setup.ThemeMode] or Themes.Dark
@@ -324,8 +330,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	SetProperty(Corner, { CornerRadius = UDim.new(0, 8), Parent = Window })
 
 	if Settings.Blurring then
-		Blurs[Settings.Title] = Blur.new(Window, 3) -- Giảm cường độ blur
-		BlurEnabled = true
+		local success, blurLib = pcall(function()
+			return loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Assets/Blur.lua"))()
+		end)
+		if success then
+			Blurs[Settings.Title] = blurLib.new(Window, 3)
+			BlurEnabled = true
+		else
+			warn("Failed to load Blur.lua")
+		end
 	end
 
 	if Settings.MinimizeKeybind then
@@ -337,16 +350,16 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		if Button:IsA("TextButton") then
 			local Name = Button.Name
 			SetProperty(Button, {
-				Size = UDim2.new(0, 35, 0, 35), -- Tăng kích thước
+				Size = UDim2.new(0, 35, 0, 35),
 				BackgroundColor3 = Theme.Component,
 				AutoButtonColor = false
 			})
 			local Corner = Instance.new("UICorner")
-			SetProperty(Corner, { CornerRadius = UDim.new(1, 0), Parent = Button }) -- Hình tròn
+			SetProperty(Corner, { CornerRadius = UDim.new(1, 0), Parent = Button })
 			local Icon = Instance.new("ImageLabel")
-			local iconId = Name == "Close" and "rbxassetid://6031094687" or -- X
-			              Name == "Minimize" and "rbxassetid://6031094678" or -- -
-			              "rbxassetid://6031094667" -- Vuông
+			local iconId = Name == "Close" and "rbxassetid://6031094687" or
+			              Name == "Minimize" and "rbxassetid://6031094678" or
+			              "rbxassetid://6031094667"
 			SetProperty(Icon, {
 				Parent = Button,
 				Image = iconId,
@@ -363,7 +376,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				                   Color3.fromRGB(50, 200, 50)
 				Tween(Button, .2, { 
 					BackgroundColor3 = hoverColor,
-					Size = UDim2.new(0, 42, 0, 42) -- Phóng to khi hover
+					Size = UDim2.new(0, 42, 0, 42)
 				})
 			end)
 			Connect(Button.InputEnded, function()
@@ -429,14 +442,14 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 
 				if SameName and not Opened.Value then
 					Tween(Padding, .25, { PaddingLeft = UDim.new(0, 25) })
-					Tween(Button, .25, { BackgroundTransparency = 0.9, Size = UDim2.new(1, -15, 0, 25) })
+					Tween(Button, .25, { BackgroundTransparency = 0.9, Size = UDim2.new(1, -15, 0, 30) })
 					if Gradient then
 						Gradient.Color = ColorSequence.new(Theme.Interactables, Theme.Component)
 					end
 					SetProperty(Opened, { Value = true })
 				elseif not SameName and Opened.Value then
 					Tween(Padding, .25, { PaddingLeft = UDim.new(0, 20) })
-					Tween(Button, .25, { BackgroundTransparency = 1, Size = UDim2.new(1, -44, 0, 25) })
+					Tween(Button, .25, { BackgroundTransparency = 1, Size = UDim2.new(1, -44, 0, 30) })
 					if Gradient then
 						Gradient.Color = ColorSequence.new(Theme.Component, Theme.Secondary)
 					end
@@ -469,9 +482,14 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 
 	function Options:AddTabSection(Settings: { Name: string, Order: number })
 		if StoredInfo["Sections"][Settings.Name] then
-			error("[UI LIB]: A section with the name '" .. Settings.Name .. "' already exists.")
+			warn("[UI LIB]: A section with the name '" .. Settings.Name .. "' already exists.")
+			return
 		end
 		local Example = Examples["SectionExample"]
+		if not Example then
+			warn("[UI LIB]: SectionExample not found in UI resources.")
+			return
+		end
 		local Section = Clone(Example)
 
 		StoredInfo["Sections"][Settings.Name] = Settings.Order
@@ -481,32 +499,53 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Name,
 			LayoutOrder = Settings.Order,
 			Visible = true,
-			Font = Enum.Font.SourceSansPro, -- Font dễ đọc
-			TextSize = 16
+			Font = Enum.Font.SourceSansPro,
+			TextSize = 18 -- Tăng kích thước chữ
 		})
 	end
 
 	function Options:AddTab(Settings: { Title: string, Icon: string, Section: string? })
+		-- Kiểm tra trùng lặp
 		if StoredInfo["Tabs"][Settings.Title] then 
-			error("[UI LIB]: A tab with the same name has already been created") 
+			warn("[UI LIB]: A tab with the name '" .. Settings.Title .. "' already exists.")
+			return nil
 		end 
 
-		local Example, MainExample = Examples["TabButtonExample"], Examples["MainExample"]
-		local Section = StoredInfo["Sections"][Settings.Section]
+		-- Kiểm tra tài nguyên
+		local Example = Examples["TabButtonExample"]
+		local MainExample = Examples["MainExample"]
+		if not Example or not MainExample then
+			warn("[UI LIB]: TabButtonExample or MainExample not found in UI resources.")
+			return nil
+		end
+
+		-- Kiểm tra section
+		local Section = Settings.Section and StoredInfo["Sections"][Settings.Section] or nil
+		if Settings.Section and not Section then
+			warn("[UI LIB]: Section '" .. Settings.Section .. "' not found for tab '" .. Settings.Title .. "'.")
+			return nil
+		end
+
 		local Main = Clone(MainExample)
 		local Tab = Clone(Example)
 
-		if not Settings.Icon then
-			Destroy(Tab["ICO"])
+		if Settings.Icon then
+			local success, ico = pcall(function()
+				SetProperty(Tab["ICO"], { Image = Settings.Icon })
+			end)
+			if not success then
+				warn("[UI LIB]: Failed to set icon for tab '" .. Settings.Title .. "'. Icon ignored.")
+				Destroy(Tab["ICO"])
+			end
 		else
-			SetProperty(Tab["ICO"], { Image = Settings.Icon })
+			Destroy(Tab["ICO"])
 		end
 
 		StoredInfo["Tabs"][Settings.Title] = { Tab }
 		SetProperty(Tab["TextLabel"], { 
 			Text = Settings.Title,
-			Font = Enum.Font.SourceSansPro, -- Font dễ đọc
-			TextSize = 14
+			Font = Enum.Font.SourceSansPro,
+			TextSize = 16 -- Tăng kích thước chữ
 		})
 		SetProperty(Main, { Parent = MainExample.Parent, Name = Settings.Title })
 		SetProperty(Tab, { 
@@ -514,7 +553,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			LayoutOrder = Section or #StoredInfo["Sections"] + 1,
 			Name = Settings.Title,
 			Visible = true,
-			Size = UDim2.new(1, -44, 0, 25)
+			Size = UDim2.new(1, -44, 0, 30) -- Tăng chiều cao tab
 		})
 		AddGradient(Tab, Theme.Component, Theme.Secondary)
 		local Corner = Instance.new("UICorner")
@@ -535,13 +574,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 
 		SetProperty(Title, { 
 			Text = Settings.Title,
-			Font = Enum.Font.SourceSansPro, -- Font dễ đọc
-			TextSize = 16
+			Font = Enum.Font.SourceSansPro,
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 		SetProperty(Notification, { Parent = Screen["Frame"] })
 		AddGradient(Notification, Theme.Primary, Theme.Secondary)
@@ -549,30 +588,35 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Corner, { CornerRadius = UDim.new(0, 6), Parent = Notification })
 
 		if Settings.Icon then
-			local Icon = Instance.new("ImageLabel")
-			SetProperty(Icon, {
-				Parent = Notification,
-				Image = Settings.Icon,
-				Size = UDim2.new(0, 20, 0, 20),
-				Position = UDim2.new(0, 10, 0, 10),
-				BackgroundTransparency = 1,
-				ImageColor3 = Theme.Icon
-			})
-			local Particle = Instance.new("ParticleEmitter")
-			SetProperty(Particle, {
-				Parent = Icon,
-				Texture = "rbxassetid://243728304",
-				Size = NumberSequence.new(0.5),
-				Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1)}),
-				Lifetime = NumberRange.new(0.5, 1),
-				Rate = 5,
-				Speed = NumberRange.new(1, 2),
-				SpreadAngle = Vector2.new(-360, 360)
-			})
-			Particle:Emit(10)
-			task.delay(Settings.Duration or 2, function()
-				Particle.Enabled = false
+			local success, icon = pcall(function()
+				local Icon = Instance.new("ImageLabel")
+				SetProperty(Icon, {
+					Parent = Notification,
+					Image = Settings.Icon,
+					Size = UDim2.new(0, 20, 0, 20),
+					Position = UDim2.new(0, 10, 0, 10),
+					BackgroundTransparency = 1,
+					ImageColor3 = Theme.Icon
+				})
+				local Particle = Instance.new("ParticleEmitter")
+				SetProperty(Particle, {
+					Parent = Icon,
+					Texture = "rbxassetid://243728304",
+					Size = NumberSequence.new(0.5),
+					Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1)}),
+					Lifetime = NumberRange.new(0.5, 1),
+					Rate = 3, -- Giảm particle để nhẹ hơn
+					Speed = NumberRange.new(1, 2),
+					SpreadAngle = Vector2.new(-360, 360)
+				})
+				Particle:Emit(5)
+				task.delay(Settings.Duration or 2, function()
+					Particle.Enabled = false
+				end)
 			end)
+			if not success then
+				warn("[UI LIB]: Failed to create icon for notification: ", icon)
+			end
 		end
 
 		task.spawn(function() 
@@ -599,7 +643,14 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Parent = Settings.Tab,
 			Visible = true,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
+		})
+		-- Thêm padding cho section
+		local Padding = Instance.new("UIPadding")
+		SetProperty(Padding, {
+			PaddingTop = UDim.new(0, 10),
+			PaddingBottom = UDim.new(0, 10),
+			Parent = Settings.Tab
 		})
 	end
 	
@@ -616,17 +667,18 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 		SetProperty(Button, {
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50) -- Tăng chiều cao button
 		})
 	end
 
@@ -650,17 +702,18 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 		SetProperty(Input, {
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
 		})
 	end
 
@@ -673,7 +726,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		
 		local Set = function(Value)
 			if Value then
-				Tween(Main, .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) })
+				Tween(Main, .2, { BackgroundColor3 = Color3.fromRGB(100, 120, 255) }) -- Màu xanh dịu
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) })
 			else
 				Tween(Main, .2, { BackgroundColor3 = Theme.Interactables })
@@ -697,24 +750,25 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 		SetProperty(Toggle, {
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
 		})
 	end
 	
 	function Options:AddKeybind(Settings: { Title: string, Description: string, Tab: Instance, Callback: any }) 
-		local Dropdown = Clone(Components["Keybind"])
-		local Title, Description = Options:GetLabels(Dropdown)
-		local Bind = Dropdown["Main"].Options
+		local Keybind = Clone(Components["Keybind"])
+		local Title, Description = Options:GetLabels(Keybind)
+		local Bind = Keybind["Main"].Options
 		
 		local Mouse = { Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2, Enum.UserInputType.MouseButton3 }
 		local Types = { 
@@ -722,7 +776,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			["Key"] = "Enum.KeyCode." 
 		}
 		
-		Connect(Dropdown.MouseButton1Click, function()
+		Connect(Keybind.MouseButton1Click, function()
 			local Detect, Finished
 			SetProperty(Bind, { Text = "..." })
 			Detect = Connect(game.UserInputService.InputBegan, function(Key, Focused) 
@@ -740,25 +794,26 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end)
 		end)
 
-		Animations:Component(Dropdown)
-		AddGradient(Dropdown, Theme.Component, Theme.Interactables)
+		Animations:Component(Keybind)
+		AddGradient(Keybind, Theme.Component, Theme.Interactables)
 		local Corner = Instance.new("UICorner")
-		SetProperty(Corner, { CornerRadius = UDim.new(0, 6), Parent = Dropdown })
+		SetProperty(Corner, { CornerRadius = UDim.new(0, 6), Parent = Keybind })
 
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
-		SetProperty(Dropdown, {
+		SetProperty(Keybind, {
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
 		})
 	end
 
@@ -802,7 +857,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				SetProperty(Title, { 
 					Text = Index,
 					Font = Enum.Font.SourceSansPro,
-					TextSize = 14
+					TextSize = 16
 				})
 				SetProperty(Button, { Parent = Example.ScrollingFrame, Visible = true })
 				Destroy(Description)
@@ -838,7 +893,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Parent = Example,
 					Text = "Done",
 					Font = Enum.Font.SourceSansPro,
-					TextSize = 14,
+					TextSize = 16,
 					Size = UDim2.new(1, 0, 0, 30),
 					Position = UDim2.new(0, 0, 1, 0),
 					AnchorPoint = Vector2.new(0, 1),
@@ -867,14 +922,19 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
-		SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+		SetProperty(Dropdown, { 
+			Name = Settings.Title, 
+			Parent = Settings.Tab, 
+			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
+		})
 	end
 
 	function Options:AddSlider(Settings: { Title: string, Description: string, MinValue: number, MaxValue: number, AllowDecimals: boolean, DecimalAmount: number, Tab: Instance, Callback: any }) 
@@ -901,7 +961,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			TextColor3 = Theme.Title,
 			BackgroundTransparency = 1,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 
 		local MaxLabel = Instance.new("TextLabel")
@@ -913,10 +973,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			TextColor3 = Theme.Title,
 			BackgroundTransparency = 1,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
 
-		AddGradient(Fill, Theme.Interactables, Color3.fromRGB(153, 155, 255))
+		AddGradient(Fill, Theme.Interactables, Color3.fromRGB(100, 120, 255))
 		local Corner = Instance.new("UICorner")
 		SetProperty(Corner, { CornerRadius = UDim.new(0, 6), Parent = Slider })
 
@@ -966,14 +1026,19 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
-		SetProperty(Slider, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+		SetProperty(Slider, { 
+			Name = Settings.Title, 
+			Parent = Settings.Tab, 
+			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
+		})
 	end
 
 	function Options:AddParagraph(Settings: { Title: string, Description: string, Tab: Instance }) 
@@ -983,14 +1048,18 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Title, { 
 			Text = Settings.Title,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 16
+			TextSize = 18
 		})
 		SetProperty(Description, { 
 			Text = Settings.Description,
 			Font = Enum.Font.SourceSansPro,
-			TextSize = 14
+			TextSize = 16
 		})
-		SetProperty(Paragraph, { Parent = Settings.Tab, Visible = true })
+		SetProperty(Paragraph, { 
+			Parent = Settings.Tab, 
+			Visible = true,
+			Size = UDim2.new(1, -10, 0, 50)
+		})
 		AddGradient(Paragraph, Theme.Component, Theme.Interactables)
 		local Corner = Instance.new("UICorner")
 		SetProperty(Corner, { CornerRadius = UDim.new(0, 6), Parent = Paragraph })
@@ -1024,28 +1093,28 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 16
+					Label.TextSize = 18
 				end
 			end,
 			["Description"] = function(Label)
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Description
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["Section"] = function(Label)
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 16
+					Label.TextSize = 18
 				end
 			end,
 			["Options"] = function(Label)
 				if Label:IsA("TextLabel") and Label.Parent.Name == "Main" then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["Notification"] = function(Label)
@@ -1058,7 +1127,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				if Label:IsA("TextLabel") and Label.Parent:FindFirstChild("List") then
 					Label.TextColor3 = Theme.Tab
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["Main"] = function(Label)
@@ -1078,7 +1147,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				elseif Label:FindFirstChild("Padding") then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["Amount"] = function(Label)
@@ -1095,13 +1164,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 16
+					Label.TextSize = 18
 				elseif Label:FindFirstChild("Labels") then
 					Label.BackgroundColor3 = Theme.Component
 				elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["Outline"] = function(Stroke)
@@ -1128,7 +1197,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				if Label:FindFirstChild("Padding") then
 					Label.TextColor3 = Theme.Title
 					Label.Font = Enum.Font.SourceSansPro
-					Label.TextSize = 14
+					Label.TextSize = 16
 				end
 			end,
 			["TextButton"] = function(Label)
@@ -1162,7 +1231,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				if Descendant:IsA("TextButton") and Descendant.Parent.Name == "Tab" then
 					Gradient.Color = Descendant.Value and Descendant.Value.Value and ColorSequence.new(Theme.Interactables, Theme.Component) or ColorSequence.new(Theme.Component, Theme.Secondary)
 				elseif Descendant.Name == "Highlight" then
-					Gradient.Color = ColorSequence.new(Theme.Interactables, Color3.fromRGB(153, 155, 255))
+					Gradient.Color = ColorSequence.new(Theme.Interactables, Color3.fromRGB(100, 120, 255))
 				else
 					Gradient.Color = ColorSequence.new(Theme.Primary, Theme.Secondary)
 				end
@@ -1191,7 +1260,12 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			if Value then
 				BlurEnabled = true
 				if not AlreadyBlurred or not Root then
-					Blurs[Settings.Title] = Blur.new(Window, 3)
+					local success, blurLib = pcall(function()
+						return loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Assets/Blur.lua"))()
+					end)
+					if success then
+						Blurs[Settings.Title] = blurLib.new(Window, 3)
+					end
 				elseif Root and not Root.Parent then
 					Root.Parent = workspace.CurrentCamera
 				end
@@ -1209,7 +1283,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	end
 
 	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen })
-	Animations:Open(Window, Settings.Transparency or 0.05)
+	Animations:Open(Window, Settings.Transparency or 0)
 	return Options
 end
 
