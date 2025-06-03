@@ -1,0 +1,669 @@
+--[[
+	Enhanced User Interface Library
+	Made by Late - Enhanced Version
+	Optimized for performance, usability, and modern features
+]]
+
+--// Type definitions for better code clarity
+export type WindowSettings = {
+	Title: string,
+	Size: UDim2?,
+	Transparency: number?,
+	MinimizeKeybind: Enum.KeyCode?,
+	Blurring: boolean?,
+	Theme: string?,
+	Resizable: boolean?,
+	Draggable: boolean?
+}
+
+export type ComponentSettings = {
+	Title: string,
+	Description: string?,
+	Tab: Instance,
+	Callback: (...any) -> ()
+}
+
+--// Connections and Services
+local GetService = game.GetService
+local RunService = GetService(game, "RunService")
+local TweenService = GetService(game, "TweenService")
+local UserInputService = GetService(game, "UserInputService")
+local Players = GetService(game, "Players")
+local HttpService = GetService(game, "HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Mouse = LocalPlayer:GetMouse()
+
+-- Wait for game to load
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+--// Enhanced Configuration
+local Config = {
+	Keybind = Enum.KeyCode.LeftControl,
+	Transparency = 0.2,
+	ThemeMode = "Dark",
+	Size = UDim2.fromOffset(500, 400),
+	AnimationSpeed = 0.25,
+	MaxWindows = 5,
+	AutoSave = true,
+	DebugMode = false
+}
+
+--// Enhanced Theme System with multiple themes
+local Themes = {
+	Dark = {
+		-- Frames
+		Primary = Color3.fromRGB(30, 30, 30),
+		Secondary = Color3.fromRGB(35, 35, 35),
+		Component = Color3.fromRGB(40, 40, 40),
+		Interactables = Color3.fromRGB(45, 45, 45),
+		Accent = Color3.fromRGB(153, 155, 255),
+		
+		-- Text
+		Tab = Color3.fromRGB(200, 200, 200),
+		Title = Color3.fromRGB(240, 240, 240),
+		Description = Color3.fromRGB(200, 200, 200),
+		
+		-- Outlines
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(40, 40, 40),
+		
+		-- Images
+		Icon = Color3.fromRGB(220, 220, 220),
+		
+		-- Status Colors
+		Success = Color3.fromRGB(46, 204, 113),
+		Warning = Color3.fromRGB(241, 196, 15),
+		Error = Color3.fromRGB(231, 76, 60),
+		Info = Color3.fromRGB(52, 152, 219)
+	},
+	
+	Light = {
+		Primary = Color3.fromRGB(255, 255, 255),
+		Secondary = Color3.fromRGB(248, 249, 250),
+		Component = Color3.fromRGB(241, 243, 244),
+		Interactables = Color3.fromRGB(233, 236, 239),
+		Accent = Color3.fromRGB(0, 123, 255),
+		
+		Tab = Color3.fromRGB(73, 80, 87),
+		Title = Color3.fromRGB(33, 37, 41),
+		Description = Color3.fromRGB(108, 117, 125),
+		
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(206, 212, 218),
+		
+		Icon = Color3.fromRGB(73, 80, 87),
+		
+		Success = Color3.fromRGB(40, 167, 69),
+		Warning = Color3.fromRGB(255, 193, 7),
+		Error = Color3.fromRGB(220, 53, 69),
+		Info = Color3.fromRGB(23, 162, 184)
+	},
+	
+	Cyberpunk = {
+		Primary = Color3.fromRGB(15, 15, 23),
+		Secondary = Color3.fromRGB(20, 20, 30),
+		Component = Color3.fromRGB(25, 25, 35),
+		Interactables = Color3.fromRGB(30, 30, 40),
+		Accent = Color3.fromRGB(255, 20, 147),
+		
+		Tab = Color3.fromRGB(0, 255, 255),
+		Title = Color3.fromRGB(255, 255, 255),
+		Description = Color3.fromRGB(176, 196, 222),
+		
+		Shadow = Color3.fromRGB(255, 20, 147),
+		Outline = Color3.fromRGB(255, 20, 147),
+		
+		Icon = Color3.fromRGB(0, 255, 255),
+		
+		Success = Color3.fromRGB(57, 255, 20),
+		Warning = Color3.fromRGB(255, 165, 0),
+		Error = Color3.fromRGB(255, 69, 0),
+		Info = Color3.fromRGB(138, 43, 226)
+	}
+}
+
+local CurrentTheme = Themes[Config.ThemeMode] or Themes.Dark
+
+--// Utility Functions
+local Utils = {}
+
+function Utils.Tween(object: Instance, duration: number, properties: {[string]: any}, info: TweenInfo?): Tween
+	local tweenInfo = info or TweenInfo.new(
+		duration,
+		Enum.EasingStyle.Quint,
+		Enum.EasingDirection.Out
+	)
+	
+	local tween = TweenService:Create(object, tweenInfo, properties)
+	tween:Play()
+	return tween
+end
+
+function Utils.SetProperties(object: Instance, properties: {[string]: any}): Instance
+	for property, value in pairs(properties) do
+		object[property] = value
+	end
+	return object
+end
+
+function Utils.DeepCopy(original: {[any]: any}): {[any]: any}
+	local copy = {}
+	for key, value in pairs(original) do
+		if type(value) == "table" then
+			copy[key] = Utils.DeepCopy(value)
+		else
+			copy[key] = value
+		end
+	end
+	return copy
+end
+
+function Utils.Lerp(a: number, b: number, t: number): number
+	return a + (b - a) * t
+end
+
+function Utils.Clamp(value: number, min: number, max: number): number
+	return math.max(min, math.min(max, value))
+end
+
+function Utils.Round(number: number, decimals: number?): number
+	local multiplier = 10 ^ (decimals or 0)
+	return math.floor(number * multiplier + 0.5) / multiplier
+end
+
+function Utils.CreateGUID(): string
+	return HttpService:GenerateGUID(false)
+end
+
+function Utils.DebugLog(message: string, level: string?)
+	if Config.DebugMode then
+		local prefix = level and `[{level:upper()}]` or "[DEBUG]"
+		print(`{prefix} UI Library: {message}`)
+	end
+end
+
+--// Enhanced Animation System
+local Animations = {}
+
+function Animations.FadeIn(object: GuiObject, duration: number?, transparency: number?)
+	return Utils.Tween(object, duration or Config.AnimationSpeed, {
+		Transparency = transparency or 0,
+		Visible = true
+	})
+end
+
+function Animations.FadeOut(object: GuiObject, duration: number?)
+	local tween = Utils.Tween(object, duration or Config.AnimationSpeed, {
+		Transparency = 1
+	})
+	
+	tween.Completed:Connect(function()
+		object.Visible = false
+	end)
+	
+	return tween
+end
+
+function Animations.ScaleIn(object: GuiObject, duration: number?, targetSize: UDim2?)
+	local originalSize = targetSize or object.Size
+	object.Size = UDim2.fromScale(0, 0)
+	object.Visible = true
+	
+	return Utils.Tween(object, duration or Config.AnimationSpeed, {
+		Size = originalSize
+	})
+end
+
+function Animations.SlideIn(object: GuiObject, direction: string, duration: number?)
+	local originalPosition = object.Position
+	local offset = object.AbsoluteSize
+	
+	-- Set initial position based on direction
+	if direction == "left" then
+		object.Position = originalPosition - UDim2.fromOffset(offset.X, 0)
+	elseif direction == "right" then
+		object.Position = originalPosition + UDim2.fromOffset(offset.X, 0)
+	elseif direction == "up" then
+		object.Position = originalPosition - UDim2.fromOffset(0, offset.Y)
+	elseif direction == "down" then
+		object.Position = originalPosition + UDim2.fromOffset(0, offset.Y)
+	end
+	
+	object.Visible = true
+	return Utils.Tween(object, duration or Config.AnimationSpeed, {
+		Position = originalPosition
+	})
+end
+
+function Animations.Bounce(object: GuiObject, scale: number?)
+	local originalSize = object.Size
+	local bounceScale = scale or 1.1
+	
+	local tween1 = Utils.Tween(object, 0.1, {
+		Size = originalSize * bounceScale
+	})
+	
+	tween1.Completed:Connect(function()
+		Utils.Tween(object, 0.1, {
+			Size = originalSize
+		})
+	end)
+end
+
+function Animations.Ripple(object: GuiObject, position: Vector2)
+	-- Create ripple effect
+	local ripple = Instance.new("Frame")
+	ripple.Name = "Ripple"
+	ripple.BackgroundColor3 = CurrentTheme.Accent
+	ripple.BackgroundTransparency = 0.7
+	ripple.BorderSizePixel = 0
+	ripple.Size = UDim2.fromOffset(0, 0)
+	ripple.Position = UDim2.fromOffset(position.X, position.Y)
+	ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+	ripple.Parent = object
+	
+	-- Create corner for circular ripple
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = ripple
+	
+	-- Animate ripple
+	local maxSize = math.max(object.AbsoluteSize.X, object.AbsoluteSize.Y) * 2
+	Utils.Tween(ripple, 0.5, {
+		Size = UDim2.fromOffset(maxSize, maxSize),
+		BackgroundTransparency = 1
+	}).Completed:Connect(function()
+		ripple:Destroy()
+	end)
+end
+
+--// Drag System with constraints
+local DragSystem = {}
+
+function DragSystem.MakeDraggable(object: GuiObject, constrainToParent: boolean?)
+	local dragging = false
+	local dragStart = nil
+	local startPos = nil
+	
+	object.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = object.Position
+		end
+	end)
+	
+	object.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+			local delta = input.Position - dragStart
+			local newPos = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+			
+			-- Constrain to parent if requested
+			if constrainToParent and object.Parent then
+				local parent = object.Parent
+				local parentSize = parent.AbsoluteSize
+				local objectSize = object.AbsoluteSize
+				
+				newPos = UDim2.new(
+					newPos.X.Scale,
+					Utils.Clamp(newPos.X.Offset, 0, parentSize.X - objectSize.X),
+					newPos.Y.Scale,
+					Utils.Clamp(newPos.Y.Offset, 0, parentSize.Y - objectSize.Y)
+				)
+			end
+			
+			object.Position = newPos
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+end
+
+--// Notification System
+local NotificationSystem = {}
+local notifications = {}
+
+function NotificationSystem.Show(settings: {
+	Title: string,
+	Description: string?,
+	Type: string?,
+	Duration: number?,
+	Actions: {{Text: string, Callback: () -> ()}}?
+})
+	-- Implementation would go here
+	Utils.DebugLog(`Showing notification: {settings.Title}`)
+end
+
+--// Main Library
+local Library = {}
+Library.__index = Library
+
+--// Component Classes
+local Component = {}
+Component.__index = Component
+
+function Component.new(componentType: string, settings: ComponentSettings)
+	local self = setmetatable({}, Component)
+	self.Type = componentType
+	self.Settings = settings
+	self.ID = Utils.CreateGUID()
+	self.Connections = {}
+	self.Enabled = true
+	
+	return self
+end
+
+function Component:Connect(signal: RBXScriptSignal, callback: (...any) -> ())
+	local connection = signal:Connect(callback)
+	table.insert(self.Connections, connection)
+	return connection
+end
+
+function Component:Disconnect()
+	for _, connection in ipairs(self.Connections) do
+		connection:Disconnect()
+	end
+	self.Connections = {}
+end
+
+function Component:SetEnabled(enabled: boolean)
+	self.Enabled = enabled
+	-- Implementation would update visual state
+end
+
+function Component:Destroy()
+	self:Disconnect()
+	if self.Instance then
+		self.Instance:Destroy()
+	end
+end
+
+--// Window Class
+local Window = {}
+Window.__index = Window
+
+function Window.new(settings: WindowSettings)
+	local self = setmetatable({}, Window)
+	
+	-- Validate settings
+	assert(settings.Title, "Window title is required")
+	
+	self.Settings = settings
+	self.ID = Utils.CreateGUID()
+	self.Tabs = {}
+	self.Components = {}
+	self.Connections = {}
+	self.Opened = true
+	self.Minimized = false
+	self.Maximized = false
+	
+	-- Create UI elements
+	self:CreateInterface()
+	self:SetupEvents()
+	self:ApplyTheme()
+	
+	Utils.DebugLog(`Created window: {settings.Title}`)
+	return self
+end
+
+function Window:CreateInterface()
+	-- This would create the actual UI elements
+	-- Implementation would go here
+	Utils.DebugLog("Creating window interface")
+end
+
+function Window:SetupEvents()
+	-- Setup window events (minimize, maximize, close, etc.)
+	Utils.DebugLog("Setting up window events")
+end
+
+function Window:ApplyTheme(theme: {[string]: any}?)
+	local themeToUse = theme or CurrentTheme
+	-- Apply theme to all UI elements
+	Utils.DebugLog("Applying theme to window")
+end
+
+function Window:AddTab(settings: {Name: string, Icon: string?})
+	assert(settings.Name, "Tab name is required")
+	assert(not self.Tabs[settings.Name], `Tab '{settings.Name}' already exists`)
+	
+	local tab = {
+		Name = settings.Name,
+		Icon = settings.Icon,
+		Components = {},
+		Visible = false
+	}
+	
+	self.Tabs[settings.Name] = tab
+	Utils.DebugLog(`Added tab: {settings.Name}`)
+	
+	return tab
+end
+
+function Window:SetTab(tabName: string)
+	assert(self.Tabs[tabName], `Tab '{tabName}' does not exist`)
+	
+	-- Hide all tabs
+	for name, tab in pairs(self.Tabs) do
+		tab.Visible = (name == tabName)
+	end
+	
+	self.CurrentTab = tabName
+	Utils.DebugLog(`Switched to tab: {tabName}`)
+end
+
+-- Component creation methods
+function Window:AddButton(tab: any, settings: ComponentSettings & {Style: string?})
+	local component = Component.new("Button", settings)
+	component.Style = settings.Style or "default"
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added button: {settings.Title}`)
+	return component
+end
+
+function Window:AddToggle(tab: any, settings: ComponentSettings & {Default: boolean?})
+	local component = Component.new("Toggle", settings)
+	component.Value = settings.Default or false
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added toggle: {settings.Title}`)
+	return component
+end
+
+function Window:AddSlider(tab: any, settings: ComponentSettings & {
+	MinValue: number?,
+	MaxValue: number,
+	Step: number?,
+	Default: number?,
+	Suffix: string?
+})
+	local component = Component.new("Slider", settings)
+	component.MinValue = settings.MinValue or 0
+	component.MaxValue = settings.MaxValue
+	component.Step = settings.Step or 1
+	component.Value = settings.Default or component.MinValue
+	component.Suffix = settings.Suffix or ""
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added slider: {settings.Title}`)
+	return component
+end
+
+function Window:AddDropdown(tab: any, settings: ComponentSettings & {
+	Options: {string},
+	Default: string?,
+	MultiSelect: boolean?
+})
+	local component = Component.new("Dropdown", settings)
+	component.Options = settings.Options or {}
+	component.Selected = settings.Default and {settings.Default} or {}
+	component.MultiSelect = settings.MultiSelect or false
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added dropdown: {settings.Title}`)
+	return component
+end
+
+function Window:AddTextbox(tab: any, settings: ComponentSettings & {
+	Placeholder: string?,
+	CharacterLimit: number?,
+	Multiline: boolean?
+})
+	local component = Component.new("Textbox", settings)
+	component.Placeholder = settings.Placeholder or ""
+	component.CharacterLimit = settings.CharacterLimit
+	component.Multiline = settings.Multiline or false
+	component.Value = ""
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added textbox: {settings.Title}`)
+	return component
+end
+
+function Window:AddKeybind(tab: any, settings: ComponentSettings & {Default: Enum.KeyCode?})
+	local component = Component.new("Keybind", settings)
+	component.Value = settings.Default
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added keybind: {settings.Title}`)
+	return component
+end
+
+function Window:AddColorPicker(tab: any, settings: ComponentSettings & {Default: Color3?})
+	local component = Component.new("ColorPicker", settings)
+	component.Value = settings.Default or Color3.fromRGB(255, 255, 255)
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added color picker: {settings.Title}`)
+	return component
+end
+
+function Window:AddSection(tab: any, settings: {Name: string})
+	local component = Component.new("Section", {
+		Title = settings.Name,
+		Tab = tab,
+		Callback = function() end
+	})
+	
+	table.insert(tab.Components, component)
+	table.insert(self.Components, component)
+	
+	Utils.DebugLog(`Added section: {settings.Name}`)
+	return component
+end
+
+function Window:Notify(settings: {
+	Title: string,
+	Description: string?,
+	Type: string?,
+	Duration: number?
+})
+	NotificationSystem.Show(settings)
+end
+
+function Window:SetTheme(themeName: string)
+	assert(Themes[themeName], `Theme '{themeName}' does not exist`)
+	
+	CurrentTheme = Themes[themeName]
+	Config.ThemeMode = themeName
+	self:ApplyTheme()
+	
+	Utils.DebugLog(`Applied theme: {themeName}`)
+end
+
+function Window:SetTransparency(transparency: number)
+	Config.Transparency = Utils.Clamp(transparency, 0, 1)
+	-- Apply transparency to UI elements
+	Utils.DebugLog(`Set transparency: {Config.Transparency}`)
+end
+
+function Window:SetVisible(visible: boolean)
+	self.Opened = visible
+	-- Update UI visibility
+	Utils.DebugLog(`Set visibility: {visible}`)
+end
+
+function Window:Destroy()
+	-- Disconnect all connections
+	for _, connection in ipairs(self.Connections) do
+		connection:Disconnect()
+	end
+	
+	-- Destroy all components
+	for _, component in ipairs(self.Components) do
+		component:Destroy()
+	end
+	
+	-- Destroy UI elements
+	if self.Interface then
+		self.Interface:Destroy()
+	end
+	
+	Utils.DebugLog(`Destroyed window: {self.Settings.Title}`)
+end
+
+--// Library Functions
+function Library.CreateWindow(settings: WindowSettings)
+	return Window.new(settings)
+end
+
+function Library.SetConfig(newConfig: {[string]: any})
+	for key, value in pairs(newConfig) do
+		if Config[key] ~= nil then
+			Config[key] = value
+		end
+	end
+	Utils.DebugLog("Updated library configuration")
+end
+
+function Library.GetConfig()
+	return Utils.DeepCopy(Config)
+end
+
+function Library.AddTheme(name: string, theme: {[string]: Color3})
+	Themes[name] = theme
+	Utils.DebugLog(`Added custom theme: {name}`)
+end
+
+function Library.GetVersion()
+	return "2.0.0-enhanced"
+end
+
+-- Cleanup function
+function Library.Cleanup()
+	-- Clean up any global resources
+	Utils.DebugLog("Performing library cleanup")
+end
+
+-- Initialize library
+Utils.DebugLog("UI Library initialized successfully")
+
+return Library
