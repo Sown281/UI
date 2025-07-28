@@ -1,0 +1,728 @@
+--[[
+	Enhanced User Interface Library - Redesigned
+	Made by Late - Enhanced Version v2.0
+	+ Fixed component creation issues
+	+ Improved Windows-style animations
+	+ Simplified nested structure
+	+ Better minimize/maximize animations
+]]
+
+--// Connections
+local GetService = game.GetService
+local Connect = game.Loaded.Connect
+local Wait = game.Loaded.Wait
+local Clone = game.Clone 
+local Destroy = game.Destroy 
+
+if (not game:IsLoaded()) then
+	local Loaded = game.Loaded
+	Loaded.Wait(Loaded);
+end
+
+--// Important Settings
+local Setup = {
+	Keybind = Enum.KeyCode.LeftControl,
+	Transparency = 0.2,
+	ThemeMode = "Dark",
+	Size = nil,
+}
+
+local Theme = { --// Dark Theme
+	--// Frames:
+	Primary = Color3.fromRGB(30, 30, 30),
+	Secondary = Color3.fromRGB(35, 35, 35),
+	Component = Color3.fromRGB(40, 40, 40),
+	Interactables = Color3.fromRGB(45, 45, 45),
+
+	--// Text:
+	Tab = Color3.fromRGB(200, 200, 200),
+	Title = Color3.fromRGB(240,240,240),
+	Description = Color3.fromRGB(200,200,200),
+
+	--// Outlines:
+	Shadow = Color3.fromRGB(0, 0, 0),
+	Outline = Color3.fromRGB(60, 60, 60),
+
+	--// Image:
+	Icon = Color3.fromRGB(220, 220, 220),
+	
+	--// Button Colors:
+	CloseButton = Color3.fromRGB(232, 17, 35),
+	MinimizeButton = Color3.fromRGB(255, 191, 0),
+	MaximizeButton = Color3.fromRGB(0, 120, 215),
+}
+
+--// Services & Functions
+local Type, Blur = nil
+local LocalPlayer = GetService(game, "Players").LocalPlayer;
+local Services = {
+	Insert = GetService(game, "InsertService");
+	Tween = GetService(game, "TweenService");
+	Run = GetService(game, "RunService");
+	Input = GetService(game, "UserInputService");
+}
+
+local Player = {
+	Mouse = LocalPlayer:GetMouse();
+	GUI = LocalPlayer.PlayerGui;
+}
+
+local Tween = function(Object : Instance, Speed : number, Properties : {},  Info : { EasingStyle: Enum?, EasingDirection: Enum? })
+	local Style, Direction
+
+	if Info then
+		Style, Direction = Info["EasingStyle"], Info["EasingDirection"]
+	else
+		Style, Direction = Enum.EasingStyle.Sine, Enum.EasingDirection.Out
+	end
+
+	return Services.Tween:Create(Object, TweenInfo.new(Speed, Style, Direction), Properties):Play()
+end
+
+local SetProperty = function(Object: Instance, Properties: {})
+	for Index, Property in next, Properties do
+		Object[Index] = (Property);
+	end
+	return Object
+end
+
+local Multiply = function(Value, Amount)
+	local New = {
+		Value.X.Scale * Amount;
+		Value.X.Offset * Amount;
+		Value.Y.Scale * Amount;
+		Value.Y.Offset * Amount;
+	}
+	return UDim2.new(unpack(New))
+end
+
+local Color = function(Color, Factor, Mode)
+	Mode = Mode or Setup.ThemeMode
+	if Mode == "Light" then
+		return Color3.fromRGB(
+			math.clamp((Color.R * 255) - Factor, 0, 255), 
+			math.clamp((Color.G * 255) - Factor, 0, 255), 
+			math.clamp((Color.B * 255) - Factor, 0, 255)
+		)
+	else
+		return Color3.fromRGB(
+			math.clamp((Color.R * 255) + Factor, 0, 255), 
+			math.clamp((Color.G * 255) + Factor, 0, 255), 
+			math.clamp((Color.B * 255) + Factor, 0, 255)
+		)
+	end
+end
+
+--// Drag functionality
+local Drag = function(Canvas)
+	if Canvas then
+		local Dragging;
+		local DragInput;
+		local Start;
+		local StartPosition;
+
+		local function Update(input)
+			local delta = input.Position - Start
+			Canvas.Position = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + delta.Y)
+		end
+
+		Connect(Canvas.InputBegan, function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch and not Type then
+				Dragging = true
+				Start = Input.Position
+				StartPosition = Canvas.Position
+
+				Connect(Input.Changed, function()
+					if Input.UserInputState == Enum.UserInputState.End then
+						Dragging = false
+					end
+				end)
+			end
+		end)
+
+		Connect(Canvas.InputChanged, function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch and not Type then
+				DragInput = Input
+			end
+		end)
+
+		Connect(Services.Input.InputChanged, function(Input)
+			if Input == DragInput and Dragging and not Type then
+				Update(Input)
+			end
+		end)
+	end
+end
+
+--// Create Windows-style Button
+local CreateWindowsButton = function(Parent, ButtonType, Position, Size)
+	local Button = Instance.new("TextButton")
+	local Corner = Instance.new("UICorner")
+	
+	Button.Name = ButtonType
+	Button.Parent = Parent
+	Button.BackgroundTransparency = 1
+	Button.Position = Position
+	Button.Size = Size or UDim2.new(0, 30, 0, 20)
+	Button.Font = Enum.Font.SourceSansBold
+	Button.TextSize = 14
+	Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Button.ZIndex = 10
+	
+	Corner.CornerRadius = UDim.new(0, 3)
+	Corner.Parent = Button
+	
+	-- Set button text and colors based on type
+	if ButtonType == "Close" then
+		Button.Text = "×"
+		Button.TextSize = 16
+		Button.BackgroundColor3 = Theme.CloseButton
+	elseif ButtonType == "Minimize" then
+		Button.Text = "−"
+		Button.TextSize = 16
+		Button.BackgroundColor3 = Theme.MinimizeButton
+	elseif ButtonType == "Maximize" then
+		Button.Text = "□"
+		Button.TextSize = 12
+		Button.BackgroundColor3 = Theme.MaximizeButton
+	end
+	
+	-- Hover effects
+	Button.MouseEnter:Connect(function()
+		Button.BackgroundTransparency = 0
+		Tween(Button, 0.15, { BackgroundTransparency = 0.2 })
+	end)
+	
+	Button.MouseLeave:Connect(function()
+		Tween(Button, 0.15, { BackgroundTransparency = 1 })
+	end)
+	
+	return Button
+end
+
+--// Create basic UI structure
+local function CreateUIStructure()
+	local ScreenGui = Instance.new("ScreenGui")
+	local MainFrame = Instance.new("CanvasGroup")
+	local UIStroke = Instance.new("UIStroke")
+	local UICorner = Instance.new("UICorner")
+	local Sidebar = Instance.new("Frame")
+	local MainContent = Instance.new("Frame")
+	
+	-- ScreenGui setup
+	ScreenGui.Name = "EnhancedUI"
+	ScreenGui.ResetOnSpawn = false
+	
+	-- Main frame setup
+	MainFrame.Name = "Main"
+	MainFrame.Parent = ScreenGui
+	MainFrame.BackgroundColor3 = Theme.Primary
+	MainFrame.Size = UDim2.new(0, 500, 0, 400)
+	MainFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
+	MainFrame.GroupTransparency = 1
+	MainFrame.Visible = false
+	
+	-- Stroke for shadow effect
+	UIStroke.Parent = MainFrame
+	UIStroke.Color = Theme.Shadow
+	UIStroke.Thickness = 1
+	UIStroke.Transparency = 0.5
+	
+	-- Corner rounding
+	UICorner.Parent = MainFrame
+	UICorner.CornerRadius = UDim.new(0, 8)
+	
+	-- Sidebar setup
+	Sidebar.Name = "Sidebar"
+	Sidebar.Parent = MainFrame
+	Sidebar.BackgroundColor3 = Theme.Primary
+	Sidebar.Size = UDim2.new(0, 150, 1, 0)
+	Sidebar.Position = UDim2.new(0, 0, 0, 0)
+	
+	local SidebarCorner = Instance.new("UICorner")
+	SidebarCorner.Parent = Sidebar
+	SidebarCorner.CornerRadius = UDim.new(0, 8)
+	
+	-- Main content setup
+	MainContent.Name = "MainContent"
+	MainContent.Parent = MainFrame
+	MainContent.BackgroundColor3 = Theme.Secondary
+	MainContent.Size = UDim2.new(1, -150, 1, 0)
+	MainContent.Position = UDim2.new(0, 150, 0, 0)
+	
+	local ContentCorner = Instance.new("UICorner")
+	ContentCorner.Parent = MainContent
+	ContentCorner.CornerRadius = UDim.new(0, 8)
+	
+	return ScreenGui, MainFrame, Sidebar, MainContent
+end
+
+--// Create component templates
+local function CreateComponentTemplates()
+	local Templates = {}
+	
+	-- Button template
+	Templates.Button = function()
+		local Button = Instance.new("TextButton")
+		local Corner = Instance.new("UICorner")
+		local Labels = Instance.new("Frame")
+		local Title = Instance.new("TextLabel")
+		local Description = Instance.new("TextLabel")
+		
+		Button.Name = "Button"
+		Button.BackgroundColor3 = Theme.Component
+		Button.Size = UDim2.new(1, -10, 0, 50)
+		Button.Font = Enum.Font.SourceSans
+		Button.Text = ""
+		Button.TextColor3 = Theme.Title
+		
+		Corner.CornerRadius = UDim.new(0, 6)
+		Corner.Parent = Button
+		
+		Labels.Name = "Labels"
+		Labels.Parent = Button
+		Labels.BackgroundTransparency = 1
+		Labels.Size = UDim2.new(1, 0, 1, 0)
+		
+		Title.Name = "Title"
+		Title.Parent = Labels
+		Title.BackgroundTransparency = 1
+		Title.Position = UDim2.new(0, 15, 0, 8)
+		Title.Size = UDim2.new(1, -30, 0, 20)
+		Title.Font = Enum.Font.SourceSansBold
+		Title.Text = "Button"
+		Title.TextColor3 = Theme.Title
+		Title.TextSize = 14
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		
+		Description.Name = "Description"
+		Description.Parent = Labels
+		Description.BackgroundTransparency = 1
+		Description.Position = UDim2.new(0, 15, 0, 25)
+		Description.Size = UDim2.new(1, -30, 0, 15)
+		Description.Font = Enum.Font.SourceSans
+		Description.Text = "Button description"
+		Description.TextColor3 = Theme.Description
+		Description.TextSize = 12
+		Description.TextXAlignment = Enum.TextXAlignment.Left
+		
+		return Button
+	end
+	
+	-- Toggle template
+	Templates.Toggle = function()
+		local Toggle = Templates.Button()
+		Toggle.Name = "Toggle"
+		
+		local ToggleFrame = Instance.new("Frame")
+		local Circle = Instance.new("Frame")
+		local CircleCorner = Instance.new("UICorner")
+		local ToggleCorner = Instance.new("UICorner")
+		local Value = Instance.new("BoolValue")
+		
+		ToggleFrame.Name = "ToggleFrame"
+		ToggleFrame.Parent = Toggle
+		ToggleFrame.BackgroundColor3 = Theme.Interactables
+		ToggleFrame.Position = UDim2.new(1, -45, 0.5, -8)
+		ToggleFrame.Size = UDim2.new(0, 35, 0, 16)
+		
+		ToggleCorner.CornerRadius = UDim.new(1, 0)
+		ToggleCorner.Parent = ToggleFrame
+		
+		Circle.Name = "Circle"
+		Circle.Parent = ToggleFrame
+		Circle.BackgroundColor3 = Theme.Primary
+		Circle.Position = UDim2.new(0, 2, 0.5, -6)
+		Circle.Size = UDim2.new(0, 12, 0, 12)
+		
+		CircleCorner.CornerRadius = UDim.new(1, 0)
+		CircleCorner.Parent = Circle
+		
+		Value.Name = "Value"
+		Value.Parent = Toggle
+		Value.Value = false
+		
+		return Toggle
+	end
+	
+	-- Section template
+	Templates.Section = function()
+		local Section = Instance.new("TextLabel")
+		
+		Section.Name = "Section"
+		Section.BackgroundTransparency = 1
+		Section.Size = UDim2.new(1, -10, 0, 25)
+		Section.Font = Enum.Font.SourceSansBold
+		Section.Text = "Section"
+		Section.TextColor3 = Theme.Title
+		Section.TextSize = 16
+		Section.TextXAlignment = Enum.TextXAlignment.Left
+		
+		local Padding = Instance.new("UIPadding")
+		Padding.Parent = Section
+		Padding.PaddingLeft = UDim.new(0, 5)
+		
+		return Section
+	end
+	
+	return Templates
+end
+
+--// Animations
+local Animations = {}
+
+function Animations:Open(Window: CanvasGroup, Transparency: number, UseCurrentSize: boolean)
+	local Original = (UseCurrentSize and Window.Size) or Setup.Size
+	local Multiplied = Multiply(Original, 1.1)
+	local Shadow = Window:FindFirstChildOfClass("UIStroke")
+
+	SetProperty(Shadow, { Transparency = 1 })
+	SetProperty(Window, {
+		Size = Multiplied,
+		GroupTransparency = 1,
+		Visible = true,
+	})
+
+	Tween(Shadow, .25, { Transparency = 0.5 })
+	Tween(Window, .25, {
+		Size = Original,
+		GroupTransparency = Transparency or 0,
+	})
+end
+
+function Animations:Close(Window: CanvasGroup)
+	local Original = Window.Size
+	local Multiplied = Multiply(Original, 1.1)
+	local Shadow = Window:FindFirstChildOfClass("UIStroke")
+
+	Tween(Shadow, .25, { Transparency = 1 })
+	Tween(Window, .25, {
+		Size = Multiplied,
+		GroupTransparency = 1,
+	})
+
+	task.wait(.25)
+	Window.Size = Original
+	Window.Visible = false
+end
+
+function Animations:Minimize(Window: CanvasGroup, Minimized: boolean)
+	if Minimized then
+		-- Minimize animation - slide down and fade
+		Tween(Window, 0.3, {
+			Position = UDim2.new(Window.Position.X.Scale, Window.Position.X.Offset, 1, 50),
+			GroupTransparency = 1
+		}, {EasingStyle = Enum.EasingStyle.Back, EasingDirection = Enum.EasingDirection.In})
+		
+		task.wait(0.3)
+		Window.Visible = false
+	else
+		-- Restore animation - slide up and fade in
+		Window.Visible = true
+		local OriginalPos = UDim2.new(0.5, -Window.Size.X.Offset/2, 0.5, -Window.Size.Y.Offset/2)
+		
+		Tween(Window, 0.3, {
+			Position = OriginalPos,
+			GroupTransparency = Setup.Transparency or 0
+		}, {EasingStyle = Enum.EasingStyle.Back, EasingDirection = Enum.EasingDirection.Out})
+	end
+end
+
+function Animations:Component(Component: any)	
+	Connect(Component.InputBegan, function() 
+		Tween(Component, .15, { BackgroundColor3 = Color(Theme.Component, 10) });
+	end)
+
+	Connect(Component.InputEnded, function() 
+		Tween(Component, .15, { BackgroundColor3 = Theme.Component });
+	end)
+end
+
+--// Main Library
+local Library = {}
+
+function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string })
+	local Screen, Window, Sidebar, MainContent = CreateUIStructure()
+	local Templates = CreateComponentTemplates()
+	local Options = {}
+	local Tabs = {}
+	local CurrentTab = nil
+	local Opened = true
+	local Maximized = false
+	local Minimized = false
+
+	-- Setup window properties
+	Setup.Transparency = Settings.Transparency or 0
+	Setup.Size = Settings.Size or UDim2.new(0, 500, 0, 400)
+	Setup.ThemeMode = Settings.Theme or "Dark"
+	
+	Window.Size = Setup.Size
+	
+	-- Try to parent to CoreGui, fallback to PlayerGui
+	pcall(function()
+		Screen.Parent = game.CoreGui
+	end)
+	if not Screen.Parent then
+		Screen.Parent = Player.GUI
+	end
+
+	-- Setup title bar
+	local TitleBar = Instance.new("Frame")
+	TitleBar.Name = "TitleBar"
+	TitleBar.Parent = Sidebar
+	TitleBar.BackgroundTransparency = 1
+	TitleBar.Size = UDim2.new(1, 0, 0, 30)
+	TitleBar.Position = UDim2.new(0, 0, 0, 0)
+	
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.Name = "Title"
+	TitleLabel.Parent = TitleBar
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Position = UDim2.new(0, 10, 0, 5)
+	TitleLabel.Size = UDim2.new(1, -120, 0, 20)
+	TitleLabel.Font = Enum.Font.SourceSansBold
+	TitleLabel.Text = Settings.Title or "UI"
+	TitleLabel.TextColor3 = Theme.Title
+	TitleLabel.TextSize = 14
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Create Windows-style buttons
+	local ButtonsContainer = Instance.new("Frame")
+	ButtonsContainer.Name = "Buttons"
+	ButtonsContainer.Parent = TitleBar
+	ButtonsContainer.BackgroundTransparency = 1
+	ButtonsContainer.Position = UDim2.new(1, -105, 0, 0)
+	ButtonsContainer.Size = UDim2.new(0, 105, 1, 0)
+
+	local CloseBtn = CreateWindowsButton(ButtonsContainer, "Close", UDim2.new(1, -35, 0, 5))
+	local MaximizeBtn = CreateWindowsButton(ButtonsContainer, "Maximize", UDim2.new(1, -70, 0, 5))
+	local MinimizeBtn = CreateWindowsButton(ButtonsContainer, "Minimize", UDim2.new(1, -105, 0, 5))
+
+	-- Setup tab container
+	local TabContainer = Instance.new("ScrollingFrame")
+	TabContainer.Name = "TabContainer"
+	TabContainer.Parent = Sidebar
+	TabContainer.BackgroundTransparency = 1
+	TabContainer.Position = UDim2.new(0, 0, 0, 35)
+	TabContainer.Size = UDim2.new(1, 0, 1, -35)
+	TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+	TabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	TabContainer.ScrollBarThickness = 4
+	TabContainer.ScrollBarImageColor3 = Theme.Component
+	
+	local TabLayout = Instance.new("UIListLayout")
+	TabLayout.Parent = TabContainer
+	TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	TabLayout.Padding = UDim.new(0, 2)
+	
+	local TabPadding = Instance.new("UIPadding")
+	TabPadding.Parent = TabContainer
+	TabPadding.PaddingAll = UDim.new(0, 5)
+
+	-- Make draggable
+	Drag(Window)
+
+	-- Window control functions
+	local Close = function()
+		if Opened then
+			Opened = false
+			Animations:Close(Window)
+		else
+			Animations:Open(Window, Setup.Transparency)
+			Opened = true
+		end
+	end
+
+	-- Connect button events
+	CloseBtn.MouseButton1Click:Connect(function()
+		Close()
+	end)
+
+	MaximizeBtn.MouseButton1Click:Connect(function()
+		if Maximized then
+			Maximized = false
+			MaximizeBtn.Text = "□"
+			Tween(Window, .2, { 
+				Size = Setup.Size,
+				Position = UDim2.new(0.5, -Setup.Size.X.Offset/2, 0.5, -Setup.Size.Y.Offset/2)
+			})
+		else
+			Maximized = true
+			MaximizeBtn.Text = "⧉"
+			Tween(Window, .2, { 
+				Size = UDim2.fromScale(0.95, 0.9), 
+				Position = UDim2.fromScale(0.5, 0.5)
+			})
+		end
+	end)
+
+	MinimizeBtn.MouseButton1Click:Connect(function()
+		Minimized = not Minimized
+		Animations:Minimize(Window, Minimized)
+	end)
+
+	-- Keybind support
+	if Settings.MinimizeKeybind then
+		Setup.Keybind = Settings.MinimizeKeybind
+	end
+
+	Services.Input.InputBegan:Connect(function(Input, Focused) 
+		if (Input == Setup.Keybind or Input.KeyCode == Setup.Keybind) and not Focused then
+			Close()
+		end
+	end)
+
+	-- Tab functions
+	function Options:AddTab(Settings: { Title: string, Icon: string })
+		local TabButton = Instance.new("TextButton")
+		local TabContent = Instance.new("ScrollingFrame")
+		local ContentLayout = Instance.new("UIListLayout")
+		local ContentPadding = Instance.new("UIPadding")
+		local TabCorner = Instance.new("UICorner")
+		
+		-- Tab button setup
+		TabButton.Name = Settings.Title
+		TabButton.Parent = TabContainer
+		TabButton.BackgroundColor3 = Theme.Component
+		TabButton.Size = UDim2.new(1, 0, 0, 35)
+		TabButton.Font = Enum.Font.SourceSans
+		TabButton.Text = Settings.Title
+		TabButton.TextColor3 = Theme.Title
+		TabButton.TextSize = 13
+		TabButton.TextXAlignment = Enum.TextXAlignment.Center
+		
+		TabCorner.CornerRadius = UDim.new(0, 4)
+		TabCorner.Parent = TabButton
+		
+		-- Tab content setup
+		TabContent.Name = Settings.Title .. "_Content"
+		TabContent.Parent = MainContent
+		TabContent.BackgroundTransparency = 1
+		TabContent.Size = UDim2.new(1, 0, 1, 0)
+		TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+		TabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		TabContent.ScrollBarThickness = 4
+		TabContent.ScrollBarImageColor3 = Theme.Component
+		TabContent.Visible = false
+		
+		ContentLayout.Parent = TabContent
+		ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ContentLayout.Padding = UDim.new(0, 5)
+		
+		ContentPadding.Parent = TabContent
+		ContentPadding.PaddingAll = UDim.new(0, 10)
+		
+		-- Store tab data
+		Tabs[Settings.Title] = {
+			Button = TabButton,
+			Content = TabContent,
+			Active = false
+		}
+		
+		-- Tab click event
+		TabButton.MouseButton1Click:Connect(function()
+			Options:SetTab(Settings.Title)
+		end)
+		
+		Animations:Component(TabButton)
+		
+		-- Set first tab as active
+		if not CurrentTab then
+			Options:SetTab(Settings.Title)
+		end
+		
+		return TabContent
+	end
+
+	function Options:SetTab(TabName: string)
+		for Name, TabData in pairs(Tabs) do
+			if Name == TabName then
+				TabData.Button.BackgroundColor3 = Color(Theme.Component, 15)
+				TabData.Content.Visible = true
+				TabData.Active = true
+				CurrentTab = TabName
+			else
+				TabData.Button.BackgroundColor3 = Theme.Component
+				TabData.Content.Visible = false
+				TabData.Active = false
+			end
+		end
+	end
+
+	function Options:GetLabels(Component)
+		local Labels = Component:FindFirstChild("Labels")
+		if Labels then
+			return Labels:FindFirstChild("Title"), Labels:FindFirstChild("Description")
+		end
+		return nil, nil
+	end
+
+	-- Component functions
+	function Options:AddSection(Settings: { Name: string, Tab: Instance })
+		local Section = Templates.Section()
+		Section.Text = Settings.Name
+		Section.Parent = Settings.Tab
+		return Section
+	end
+
+	function Options:AddButton(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
+		local Button = Templates.Button()
+		local Title, Description = Options:GetLabels(Button)
+		
+		if Title then Title.Text = Settings.Title end
+		if Description then Description.Text = Settings.Description end
+		
+		Button.Parent = Settings.Tab
+		Button.MouseButton1Click:Connect(Settings.Callback)
+		
+		Animations:Component(Button)
+		return Button
+	end
+
+	function Options:AddToggle(Settings: { Title: string, Description: string, Default: boolean, Tab: Instance, Callback: any })
+		local Toggle = Templates.Toggle()
+		local Title, Description = Options:GetLabels(Toggle)
+		local ToggleFrame = Toggle:FindFirstChild("ToggleFrame")
+		local Circle = ToggleFrame:FindFirstChild("Circle")
+		local Value = Toggle:FindFirstChild("Value")
+		
+		if Title then Title.Text = Settings.Title end
+		if Description then Description.Text = Settings.Description end
+		
+		local function SetToggle(State)
+			Value.Value = State
+			if State then
+				Tween(ToggleFrame, 0.2, { BackgroundColor3 = Color3.fromRGB(100, 200, 100) })
+				Tween(Circle, 0.2, { 
+					Position = UDim2.new(1, -14, 0.5, -6),
+					BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				})
+			else
+				Tween(ToggleFrame, 0.2, { BackgroundColor3 = Theme.Interactables })
+				Tween(Circle, 0.2, { 
+					Position = UDim2.new(0, 2, 0.5, -6),
+					BackgroundColor3 = Theme.Primary
+				})
+			end
+		end
+		
+		Toggle.MouseButton1Click:Connect(function()
+			local NewState = not Value.Value
+			SetToggle(NewState)
+			Settings.Callback(NewState)
+		end)
+		
+		Toggle.Parent = Settings.Tab
+		SetToggle(Settings.Default or false)
+		Animations:Component(Toggle)
+		
+		return Toggle
+	end
+
+	-- Show window
+	Animations:Open(Window, Setup.Transparency)
+	
+	return Options
+end
+
+return Library
